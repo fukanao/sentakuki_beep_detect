@@ -9,7 +9,7 @@ Raspberry Piを使って、洗濯機のアラームを検知してAlexaに洗濯
 
 ハードウェア
 
-Raspberry pi ZERO WH
+Raspberry pi ZERO WH~
 サンワサプライ USBマイクロホン 単一指向性 直挿し型 MM-MCU02BK
 
 
