@@ -14,5 +14,8 @@ Raspberry pi ZERO WH
 サンワサプライ USBマイクロホン 単一指向性 直挿し型 MM-MCU02BK
 
 
+
+Python 3.7.3
+
 参考にしました
 https://qiita.com/kenmasu/items/c56e2e0407ca0d8d3439
