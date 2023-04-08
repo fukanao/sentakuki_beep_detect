@@ -19,3 +19,6 @@ Python 3.7.3
 
 参考にしました
 https://qiita.com/kenmasu/items/c56e2e0407ca0d8d3439
+
+洗濯機を買い替えを機に改修
+Panasonic NA-LX113B対応
