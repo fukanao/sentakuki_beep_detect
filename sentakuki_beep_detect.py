@@ -14,33 +14,24 @@ ALARM_FREQ = 1950  # アラーム音の周波数 Panasonic NA-LX113B
 FREQ_COUNT = 3  # 最大音量の周波数カウント数
 PEAK_COUNT = 0
 LOOP_MAX = 100  # 誤検知回避のためカウント回数リセット
-dt = 1/RATE
-freq = np.linspace(0, 1.0/dt, CHUNK)
+dt = 1 / RATE
+freq = np.linspace(0, 1.0 / dt, CHUNK)
 detect_freq = []
 MARGIN = 10  # 周波数のマージン Hz
 ALEXA_URL = 'http://10.0.1.6:1880/sentakuki/'  # Alexa通知サーバurl
 
-#BEEP_DURATION = 0.5  # ビープ音の持続時間 (秒)
-BEEP_DURATION = 0.4  # ビープ音の持続時間 (秒)
-#BEEP_INTERVAL = 0.7  # ビープ音の間隔 (秒)
-BEEP_INTERVAL = 0.6  # ビープ音の間隔 (秒)
-BEEP_REPEAT_COUNT = 6  # ビープ音の繰り返し回数
+BEEP_DURATION = 0.5
+SILENCE_DURATION = 0.7
+BEEP_REPEAT = 6
 
-beep_detected_count = 0
-silence_detected_count = 0
-in_beep = False
-in_silence = False
-alarm_time = time.time()
+BEEP_DURATION = int(0.5 * RATE)  # Change to int(0.5 * RATE)
+SILENCE_DURATION = int(0.7 * RATE)  # Change to int(0.7 * RATE)
 
 
-def timeRecord():
-    alarm_time = time.time()
 
 def slack():
-    text = "洗濯機アラーム検知"
-    slack = slackweb.Slack(url="https://hooks.slack.com/services/")
-    slack.notify(text = text, channel="#private-fuka-ch", username="sentakuki-beep", icon_emoji=":raspberrypi:", mrkdwn=True)
-
+    slack = slackweb.Slack(url="https://hooks.slack.com/services/YOUR_KEY")
+    slack.notify(text="洗濯機アラーム検知", channel="#private-fuka-ch", username="sentakuki-beep", icon_emoji=":raspberrypi:", mrkdwn=True)
 
 def getMaxFreqFFT(sound, chunk, freq):
     f = np.fft.fft(sound) / (chunk / 2)
@@ -62,55 +53,67 @@ def getMaxFreqFFT(sound, chunk, freq):
 
         i += 1
 
-    return PEAK_FLAG
+    return detect_freq, PEAK_FLAG
 
-
-def kickAlart(beep, TIME):
+def kickAlart():
+    slack()
     urllib.request.urlopen(ALEXA_URL)
     return
-
 
 if __name__ == '__main__':
     P = pyaudio.PyAudio()
     stream = P.open(format=pyaudio.paInt16, channels=1, rate=RATE, frames_per_buffer=CHUNK, input=True, output=False)
 
+    beep_count = 0
+    silence_count = 0
+    total_count = 0
+    beep_timer = 0
+    silence_timer = 0
+
+
+
     while stream.is_active():
+        total_count += 1
+
+        if total_count >= LOOP_MAX:
+            beep_count = 0
+            silence_count = 0
+            total_count = 0
 
         try:
             input = stream.read(CHUNK, exception_on_overflow=False)
             ndarray = np.frombuffer(input, dtype='int16')
 
+            abs_array = np.abs
             abs_array = np.abs(ndarray) / 32768
 
-            #if abs_array.max() > 0.012:  # 拾う音レベル設定
-            if abs_array.max() > 0.01:  # 拾う音レベル設定
-                BEEP = getMaxFreqFFT(ndarray, CHUNK, freq)
+            if abs_array.max() > 0.012:
+                detect_freq, BEEP = getMaxFreqFFT(ndarray, CHUNK, freq)
 
-                if BEEP > 0 and not in_beep:
-                    in_beep = True
-                    in_silence = False
+                if BEEP:
+                    beep_timer += CHUNK
+                    silence_timer = 0
+                    if beep_timer >= BEEP_DURATION:
+                        beep_count += 1
+                        beep_timer = 0
+                else:
+                    silence_timer += CHUNK
+                    if silence_timer >= SILENCE_DURATION:
+                        silence_count += 1
+                        silence_timer = 0
 
-                    checkTime = time.time()
+                if beep_count >= BEEP_REPEAT and silence_count >= BEEP_REPEAT:
+                    beep_count = 0
+                    silence_count = 0
 
-                    beep_detected_count += 1
+                    kickAlart()
 
-                    if beep_detected_count >= BEEP_REPEAT_COUNT:
-                        nowTime = time.time()
-
-                        # 操作音誤検知の為アラーム発動から5分以内は実行しない
-                        if nowTime - alarm_time >= 300:
-                            kickAlart(BEEP, nowTime)
-                            timeRecord()
-                            slack()
-
-                        beep_detected_count = 0
-
-                elif BEEP == 0 and not in_silence:
-                    in_beep = False
-                    in_silence = True
+            else:
+                silence_count += 1
 
         except KeyboardInterrupt:
             break
+
 
     stream.stop_stream()
     stream.close()
