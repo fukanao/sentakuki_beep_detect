@@ -38,7 +38,7 @@ def timeRecord():
 
 def slack():
     text = "洗濯機アラーム検知"
-    slack = slackweb.Slack(url="https://hooks.slack.com/services/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")
+    slack = slackweb.Slack(url="https://hooks.slack.com/services/")
     slack.notify(text = text, channel="#private-fuka-ch", username="sentakuki-beep", icon_emoji=":raspberrypi:", mrkdwn=True)
 
 
